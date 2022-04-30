@@ -1,3 +1,6 @@
+This is not ready yet, it will not work until all documentation is completed
+
+
 # Farm-Guide
 
 This is a guide to setup a Phala mining farm, using automation so save you a lot of time. All the steps in these guide and the choices made for e.g. operation system and settings are made for very good reasons. You are highly recommended *NOT* to deviate from these plans. This setup is proven to work, but it also requires basic system operation skills, like updates, docker, ansible, etc. If you are not an expecianced linux administrator this guide will still get you started, but you might face issues you cannot resolve. Please note that this GITHUB is *NOT* a support channel for Phala, if you have questions please use Discord for community support.
