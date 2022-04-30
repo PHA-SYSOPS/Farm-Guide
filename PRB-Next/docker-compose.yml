@@ -1,0 +1,145 @@
+version: "3"
+
+x-defaults: &defaults
+  volumes: &default-volume-config
+    - /opt/prb/data:/var/data
+#    - /opt/prb/data_old:/var/data_old
+
+services:
+  redis-q:
+    network_mode: host
+    image: redis:alpine
+    hostname: redis-q
+    restart: always
+    logging:
+      options:
+        max-size: "1g"
+    command: ["redis-server", "--port", "63792", "--appendonly", "no", '--save', '']
+    # ports:
+    #   - "63792:63792"
+
+  arena:
+    network_mode: host
+    image: phalanetwork/prb:git-next
+    hostname: arena
+    restart: always
+    depends_on:
+      - redis-q
+    environment:
+      - PHALA_MODULE=utils/arena
+      - NODE_ENV=development
+      - PHALA_LOGGER_LEVEL=debug
+      - PHALA_NAMESPACE=default
+      - REDIS_ENDPOINT=redis://127.0.0.1:63792/
+    # ports:
+    #   - "4567:4567"
+
+  trade:
+    network_mode: host
+    image: phalanetwork/prb:git-next
+    hostname: trade
+    restart: always
+    volumes: *default-volume-config
+    logging:
+      options:
+        max-size: "1g"
+    depends_on:
+      - redis-q
+    environment:
+      - PHALA_MODULE=trade
+      - NODE_ENV=development
+      - PHALA_DB_NAMESPACE=default
+      - PHALA_DB_FETCH_NAMESPACE=fetch
+      - PHALA_DB_ENDPOINT=redis://127.0.0.1:6666
+      - PHALA_LOGGER_LEVEL=debug
+      - PHALA_PARENT_CHAIN_ENDPOINT=ws://10.201.87.203:9945
+      - PHALA_CHAIN_ENDPOINT=ws://10.201.87.203:9944
+      - PHALA_Q_REDIS_ENDPOINT=redis://127.0.0.1:63792/
+    entrypoint:
+      - "node"
+      - "--trace-warnings"
+      - "--experimental-json-modules"
+      - "--es-module-specifier-resolution=node"
+      - "--harmony-top-level-await"
+      # - "--max-old-space-size=10240"
+      - "dist/index"
+
+  lifecycle:
+    network_mode: host
+    image: phalanetwork/prb:git-next
+    hostname: lifecycle
+    restart: always
+    depends_on:
+      - redis-q
+    volumes: *default-volume-config
+    logging:
+      options:
+        max-size: "1g"
+    environment:
+      # - PHALA_SYNC_ONLY=true
+      - PHALA_MODULE=lifecycle
+      - NODE_ENV=development
+      - PHALA_LOGGER_LEVEL=debug
+      - PHALA_PARENT_CHAIN_ENDPOINT=ws://10.201.87.203:9945
+      - PHALA_CHAIN_ENDPOINT=ws://10.201.87.203:9944
+      - PHALA_Q_REDIS_ENDPOINT=redis://127.0.0.1:63792/
+      - PHALA_LRU_CACHE_SIZE=50
+      - PHALA_LRU_CACHE_MAX_AGE=90000
+      - PHALA_RUNNER_MAX_WORKER_NUMBER=25
+      - PHALA_PRPC_REQUEST_TIMEOUT=60000
+      - PHALA_BRIDGE_IDENTITY=production
+      - PHALA_WALKIE_LISTEN_ADDRESSES=/ip4/10.201.87.201/tcp/29888,/ip4/127.0.0.1/tcp/29888
+      - PHALA_WALKIE_BOOT_NODES=/ip4/10.201.87.201/tcp/28888/p2p/REPLACE-WITH-DATAPROVIDER-ID,/ip4/10.201.87.202/tcp/28888/p2p/REPLACE-WITH-DATAPROVIDER-ID
+    mem_swappiness: 70
+    entrypoint:
+      - "node"
+      - "--trace-warnings"
+      - "--experimental-json-modules"
+      - "--es-module-specifier-resolution=node"
+      - "--harmony-top-level-await"
+      - "dist/index"
+    # ports:
+    #   - "29888:29888"
+
+  data_provider:
+    image: phalanetwork/prb:next
+    hostname: data_provider
+    network_mode: host
+    restart: always
+    volumes: *default-volume-config
+    logging:
+      options:
+        max-size: "1g"
+    environment:
+      - PHALA_MODULE=data_provider
+      - NODE_ENV=development
+      - PHALA_LOGGER_LEVEL=debug
+      - PHALA_PARENT_CHAIN_ENDPOINT=ws://10.201.87.203:9945
+      - PHALA_CHAIN_ENDPOINT=ws://10.201.87.203:9944
+      - PHALA_WALKIE_LISTEN_ADDRESSES=/ip4/10.201.87.201/tcp/28888,/ip4/127.0.0.1/tcp/28888
+      - PHALA_BRIDGE_IDENTITY=production
+      - PHALA_LIFECYCLE_BLOB_SERVER_SESSION_MAX_MEMORY=64
+    entrypoint:
+      - "node"
+      - "--trace-warnings"
+      - "--experimental-json-modules"
+      - "--es-module-specifier-resolution=node"
+      - "--harmony-top-level-await"
+      # - "--trace-gc"
+      # - "--expose-gc"
+      # - "--no-compilation-cache"
+      # - "--max-old-space-size=10240"
+      # - "--max-heap-size=100"
+      # - "--no-always-promote-young-mc"
+      - "dist/index"
+
+  monitor:
+    image: phalanetwork/prb-monitor:next
+    hostname: monitor
+    network_mode: host
+    environment:
+      - NS_FETCH=fetch
+      - NEXT_PUBLIC_NS_LIST=default
+      - PTP_BOOT_NODES=/ip4/127.0.0.1/tcp/28888
+      - PORT=80
+
