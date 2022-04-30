@@ -66,3 +66,85 @@ rackd4 10.101.87.238 / 40GB HDD / 6GB RAM
 
 Notice: You should install these on VM's on seperate hypervisors e.g. sql1 on HV1, sql2 on HV2. This is for *redundancy*.
 Notice: After installing you must configure the VLAN's and enable PXE on them.
+
+## Install a docker registry and APT mirror.
+
+Needs 400GB space, follow the apt-mirror guide ... for example https://blog.programster.org/set-up-a-local-ubuntu-mirror-with-apt-mirror will get you a long way. Make sure this VM lives in VLAN 87 with IP .229.
+
+```cat /etc/apt/mirror.list
+############# config ##################
+#
+# set base_path    /var/spool/apt-mirror
+#
+# set mirror_path  $base_path/mirror
+# set skel_path    $base_path/skel
+# set var_path     $base_path/var
+# set cleanscript $var_path/clean.sh
+# set defaultarch  <running host architecture>
+# set postmirror_script $var_path/postmirror.sh
+# set run_postmirror 0
+set nthreads     50
+set _tilde 0
+#
+############# end config ##############
+
+#
+############# end config ##############
+deb https://download.01.org/intel-sgx/sgx_repo/ubuntu/ focal main
+deb https://download.01.org/intel-sgx/sgx_repo/ubuntu/ bionic main
+
+#
+deb https://nl.archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ focal main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ focal-updates main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ focal-updates main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ focal-backports main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ focal-backports main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ focal-security main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ focal-security main restricted universe multiverse
+# deb https://nl.archive.ubuntu.com/ubuntu/ focal-proposed main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ focal-proposed main restricted universe multiverse
+
+deb https://nl.archive.ubuntu.com/ubuntu/ bionic main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ bionic main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ bionic-updates main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ bionic-updates main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ bionic-backports main restricted universe multiverse
+deb https://nl.archive.ubuntu.com/ubuntu/ bionic-security main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ bionic-security main restricted universe multiverse
+# deb https://nl.archive.ubuntu.com/ubuntu/ bionic-proposed main restricted universe multiverse
+# deb-src https://nl.archive.ubuntu.com/ubuntu/ bionic-proposed main restricted universe multiverse
+
+clean http://archive.ubuntu.com/ubuntu
+```
+
+Run a docker registry too:
+
+```
+apt-get install docker-compose docker.io
+systemctl enable docker
+docker run -d -p 5000:5000 --restart=always --name registry registry:2
+```
+
+```/etc/docker/daemon.json
+{
+        "insecure-registries": [
+                "10.201.87.229:5000",
+                "10.201.87.249:5000"
+        ]
+}
+
+```
+
+And make sure you have the required runtime on your localy registry:
+
+```
+#!/bin/bash
+VER="22041201"
+SERVER="10.201.87.229"
+
+docker pull phalanetwork/phala-pruntime:$VER
+docker tag phalanetwork/phala-pruntime:$VER $SERVER:5000/phalanetwork/phala-pruntime:$VER
+docker push $SERVER:5000/phalanetwork/phala-pruntime:$VER
+```
