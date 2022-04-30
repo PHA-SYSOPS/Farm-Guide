@@ -148,3 +148,19 @@ docker pull phalanetwork/phala-pruntime:$VER
 docker tag phalanetwork/phala-pruntime:$VER $SERVER:5000/phalanetwork/phala-pruntime:$VER
 docker push $SERVER:5000/phalanetwork/phala-pruntime:$VER
 ```
+
+
+## Two node VM's
+
+create two VM's with docker and run the node inside and use VLAN 87 IP .203 and .204
+
+```
+apt-get install docker-compose docker.io
+systemctl enable docker
+docker pull phalanetwork/khala-node:latest
+docker run --restart always --network host --name phala-node -d -e NODE_NAME=YOURNAME -e NODE_ROLE=MINER \
+-e PARACHAIN_EXTRA_ARGS='--state-cache-size 0 --max-runtime-instances 16 --ws-max-connections 2048' \
+-e RELAYCHAIN_EXTRA_ARGS='--max-runtime-instances 16 --ws-max-connections 2048 --discover-local' \
+-v /opt/khala-node:/root/data \
+phalanetwork/khala-node:latest
+```
